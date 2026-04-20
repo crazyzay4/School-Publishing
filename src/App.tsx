@@ -4,7 +4,7 @@ import {
   LayoutDashboard, Printer, Layers, Maximize, GitMerge, TrendingUp,
   Menu, X, Calculator, ArrowRight, Monitor, Scissors, BookOpen,
   CheckCircle2, Award, PaintBucket, Lightbulb, Play, RefreshCw,
-  PieChart, BarChart3, Clock, Zap, Users, HelpCircle, Info, Heart, Terminal, Volume2
+  PieChart, BarChart3, Clock, Zap, Users, HelpCircle, Info, Heart, Terminal, Volume2, Music
 } from 'lucide-react';
 import { equipmentData, materialsData, processSteps, pitchData, interiorData, operationsData, teacherBenefits } from './data';
 
@@ -21,7 +21,33 @@ function App() {
   // Simulation State
   const [isSimulating, setIsSimulating] = useState(false);
   const [simStep, setSimStep] = useState(0);
+  const [musicEnabled, setMusicEnabled] = useState(false);
   const logEndRef = useRef<HTMLDivElement>(null);
+  
+  const bgMusicRef = useRef<HTMLAudioElement | null>(null);
+  const printerSoundRef = useRef<HTMLAudioElement | null>(null);
+
+  useEffect(() => {
+    bgMusicRef.current = new Audio('https://assets.mixkit.co/music/preview/mixkit-tech-house-vibe-130.mp3');
+    bgMusicRef.current.loop = true;
+    bgMusicRef.current.volume = 0.2;
+    
+    printerSoundRef.current = new Audio('https://www.soundjay.com/mechanical/inkjet-printer-1.mp3');
+    printerSoundRef.current.volume = 0.4;
+
+    return () => {
+      bgMusicRef.current?.pause();
+      printerSoundRef.current?.pause();
+    };
+  }, []);
+
+  useEffect(() => {
+    if (musicEnabled) {
+      bgMusicRef.current?.play().catch(e => console.log("Audio play blocked", e));
+    } else {
+      bgMusicRef.current?.pause();
+    }
+  }, [musicEnabled]);
 
   const playBeep = (freq = 440, duration = 0.1) => {
     if (!voiceEnabled) return;
@@ -88,6 +114,8 @@ function App() {
         setSimStep(prev => prev + 1);
       }, voiceEnabled ? 4000 : 2500); // Give more time if voicing
     } else if (simStep === processSteps.length) {
+      printerSoundRef.current?.pause();
+      if (printerSoundRef.current) printerSoundRef.current.currentTime = 0;
       if (voiceEnabled) {
         playBeep(1320, 0.2); // Success chord-ish beep
         speak("Вітаємо! Ваш журнал успішно надруковано та готовий до видачі.");
@@ -108,6 +136,9 @@ function App() {
   const startSimulation = () => {
     setSimStep(0);
     setIsSimulating(true);
+    if (musicEnabled) {
+      printerSoundRef.current?.play().catch(e => console.log(e));
+    }
   };
 
   const renderContent = () => {
@@ -565,6 +596,19 @@ function App() {
           ))}
         </nav>
         <div className="mt-auto pt-8 border-t border-white/5 space-y-4">
+          <div className="flex items-center justify-between group cursor-pointer" onClick={() => setMusicEnabled(!musicEnabled)}>
+            <div className="flex items-center gap-2">
+              {musicEnabled ? <Music size={16} className="text-indigo-400" /> : <Music size={16} className="text-slate-500" />}
+              <span className={`text-sm ${musicEnabled ? 'text-slate-200' : 'text-slate-500'}`}>Фонова музика</span>
+            </div>
+            <div className={`w-10 h-5 rounded-full transition-colors relative ${musicEnabled ? 'bg-indigo-500' : 'bg-slate-700'}`}>
+              <motion.div 
+                animate={{ x: musicEnabled ? 20 : 2 }}
+                initial={{ x: 2 }}
+                className="absolute top-1 w-3 h-3 bg-white rounded-full"
+              />
+            </div>
+          </div>
           <div className="flex items-center justify-between group cursor-pointer" onClick={() => setVoiceEnabled(!voiceEnabled)}>
             <div className="flex items-center gap-2">
               {voiceEnabled ? <Zap size={16} className="text-amber-400" /> : <Zap size={16} className="text-slate-500" />}
