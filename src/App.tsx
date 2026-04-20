@@ -4,7 +4,7 @@ import {
   LayoutDashboard, Printer, Layers, Maximize, GitMerge, TrendingUp,
   Menu, X, Calculator, ArrowRight, Monitor, Scissors, BookOpen,
   CheckCircle2, Award, PaintBucket, Lightbulb, Play, RefreshCw,
-  PieChart, BarChart3, Clock, Zap, Users, HelpCircle, Info, Heart, Terminal
+  PieChart, BarChart3, Clock, Zap, Users, HelpCircle, Info, Heart, Terminal, Volume2
 } from 'lucide-react';
 import { equipmentData, materialsData, processSteps, pitchData, interiorData, operationsData, teacherBenefits } from './data';
 
@@ -16,11 +16,40 @@ function App() {
   const [calcCopies, setCalcCopies] = useState(100);
   const [activeEquipmentId, setActiveEquipmentId] = useState<string | null>(null);
   const [showGuide, setShowGuide] = useState(false);
+  const [voiceEnabled, setVoiceEnabled] = useState(false);
   
   // Simulation State
   const [isSimulating, setIsSimulating] = useState(false);
   const [simStep, setSimStep] = useState(0);
   const logEndRef = useRef<HTMLDivElement>(null);
+
+  const playBeep = (freq = 440, duration = 0.1) => {
+    if (!voiceEnabled) return;
+    try {
+      const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
+      const oscillator = audioCtx.createOscillator();
+      const gainNode = audioCtx.createGain();
+      oscillator.connect(gainNode);
+      gainNode.connect(audioCtx.destination);
+      oscillator.type = 'sine';
+      oscillator.frequency.setValueAtTime(freq, audioCtx.currentTime);
+      gainNode.gain.setValueAtTime(0.1, audioCtx.currentTime);
+      gainNode.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + duration);
+      oscillator.start();
+      oscillator.stop(audioCtx.currentTime + duration);
+    } catch (e) {
+      console.error("Audio API error", e);
+    }
+  };
+
+  const speak = (text: string) => {
+    if (!voiceEnabled || !window.speechSynthesis) return;
+    window.speechSynthesis.cancel();
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.lang = 'uk-UA';
+    utterance.rate = 1.1; // Slightly faster for modern feel
+    window.speechSynthesis.speak(utterance);
+  };
 
   const tabs: { id: Tab; label: string; icon: React.ReactNode }[] = [
     { id: 'overview', label: 'Огляд Проекту', icon: <LayoutDashboard size={20} /> },
@@ -47,16 +76,28 @@ function App() {
   useEffect(() => {
     let timer: NodeJS.Timeout;
     if (isSimulating && simStep < processSteps.length) {
+      // Voice out current step logs
+      if (voiceEnabled) {
+        playBeep(880, 0.05); // High beep for system init
+        const stepLogs = simLogs[simStep];
+        const cleanTexts = stepLogs.map(log => log.replace(/\[.*?\]: /g, ''));
+        speak(cleanTexts.join('. '));
+      }
+
       timer = setTimeout(() => {
         setSimStep(prev => prev + 1);
-      }, 2500);
+      }, voiceEnabled ? 4000 : 2500); // Give more time if voicing
     } else if (simStep === processSteps.length) {
+      if (voiceEnabled) {
+        playBeep(1320, 0.2); // Success chord-ish beep
+        speak("Вітаємо! Ваш журнал успішно надруковано та готовий до видачі.");
+      }
       timer = setTimeout(() => {
         setIsSimulating(false);
       }, 3000);
     }
     return () => clearTimeout(timer);
-  }, [isSimulating, simStep]);
+  }, [isSimulating, simStep, voiceEnabled]);
 
   useEffect(() => {
     if (logEndRef.current) {
@@ -82,6 +123,14 @@ function App() {
               <p className="text-xl text-slate-400 font-light relative z-10">
                 Професійний цикл друку на площі 7 м² з бюджетом 50 000 ₴. Від ідеї до готового журналу.
               </p>
+              <div className="mt-6 flex justify-center relative z-10">
+                <button 
+                  onClick={() => speak("Вітаємо у шкільній друкарні. Наша мета — створити професійний цикл друку на семи квадратних метрах. Перегляньте вкладки обладнання та бізнес-плану, щоб дізнатися більше.")}
+                  className="flex items-center gap-2 px-4 py-2 bg-indigo-500/10 border border-indigo-500/20 rounded-full text-indigo-400 hover:bg-indigo-500/20 transition-all text-xs"
+                >
+                  <Volume2 size={14} /> Прослухати вступ
+                </button>
+              </div>
             </div>
 
             {/* Operational Metrics */}
@@ -471,6 +520,14 @@ function App() {
               <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full h-1 bg-gradient-to-r from-transparent via-indigo-500 to-transparent opacity-50"></div>
               <Award size={48} className="mx-auto text-amber-400 mb-6" />
               <h3 className="text-3xl font-serif text-white mb-6">Висновок для Адміністрації</h3>
+              <div className="mb-6 flex justify-center">
+                <button 
+                  onClick={() => speak("Шановна адміністраціє! Цей проект — це створення власного медіа-центру, який окупить себе менш ніж за рік. Він дасть учням реальну професію, підвищить престиж школи та дозволить створювати преміальні матеріали за копійки. Ми пропонуємо інвестувати сьогодні, щоб економити завтра.")}
+                  className="flex items-center gap-2 px-4 py-2 bg-indigo-500/20 border border-indigo-500/30 rounded-full text-indigo-400 hover:bg-indigo-500/30 transition-all text-sm"
+                >
+                  <Play size={16} /> Прослухати висновок (Audio)
+                </button>
+              </div>
               <p className="text-lg text-slate-300 leading-relaxed max-w-4xl mx-auto mb-8">
                 Шановна адміністраціє! Цей проект — це створення власного медіа-центру, який <strong>окупить себе менш ніж за рік</strong>. 
                 Він дасть учням реальну професію, підвищить престиж школи на рівні міста та дозволить створювати преміальні матеріали за копійки. 
@@ -501,14 +558,30 @@ function App() {
         </div>
         <nav className="flex-1 space-y-2">
           {tabs.map((tab) => (
-            <button key={tab.id} onClick={() => { setActiveTab(tab.id); setIsMobileMenuOpen(false); }} className={`w-full flex items-center gap-4 px-4 py-4 rounded-2xl transition-all duration-300 ${activeTab === tab.id ? 'bg-indigo-500/15 text-indigo-400 font-medium border border-indigo-500/20 shadow-[inset_0_0_20px_rgba(99,102,241,0.1)]' : 'text-slate-400 hover:bg-white/5 hover:text-slate-200 border border-transparent'}`}>
-              {tab.icon} {tab.label}
+            <button key={tab.id} onClick={() => { setActiveTab(tab.id); setIsMobileMenuOpen(false); }} className={`w-full flex items-center text-left gap-4 px-4 py-4 rounded-2xl transition-all duration-300 ${activeTab === tab.id ? 'bg-indigo-500/15 text-indigo-400 font-medium border border-indigo-500/20 shadow-[inset_0_0_20px_rgba(99,102,241,0.1)]' : 'text-slate-400 hover:bg-white/5 hover:text-slate-200 border border-transparent'}`}>
+              <div className="shrink-0">{tab.icon}</div>
+              <span className="leading-tight">{tab.label}</span>
             </button>
           ))}
         </nav>
-        <div className="mt-auto pt-8 border-t border-white/5">
-          <div className="text-xs text-slate-500 mb-1">Бюджет проекту:</div>
-          <div className="text-xl text-white font-serif tracking-wide">{totalBudget.toLocaleString()} ₴</div>
+        <div className="mt-auto pt-8 border-t border-white/5 space-y-4">
+          <div className="flex items-center justify-between group cursor-pointer" onClick={() => setVoiceEnabled(!voiceEnabled)}>
+            <div className="flex items-center gap-2">
+              {voiceEnabled ? <Zap size={16} className="text-amber-400" /> : <Zap size={16} className="text-slate-500" />}
+              <span className={`text-sm ${voiceEnabled ? 'text-slate-200' : 'text-slate-500'}`}>Озвучення</span>
+            </div>
+            <div className={`w-10 h-5 rounded-full transition-colors relative ${voiceEnabled ? 'bg-indigo-500' : 'bg-slate-700'}`}>
+              <motion.div 
+                animate={{ x: voiceEnabled ? 20 : 2 }}
+                initial={{ x: 2 }}
+                className="absolute top-1 w-3 h-3 bg-white rounded-full"
+              />
+            </div>
+          </div>
+          <div>
+            <div className="text-xs text-slate-500 mb-1">Бюджет проекту:</div>
+            <div className="text-xl text-white font-serif tracking-wide">{totalBudget.toLocaleString()} ₴</div>
+          </div>
         </div>
       </aside>
 
@@ -535,6 +608,7 @@ function App() {
                 <li className="flex gap-3"><Printer className="text-emerald-400 shrink-0" size={20} /> <span><strong className="text-white">Технопарк:</strong> Наводьте на обладнання, щоб побачити його в 3D-кімнаті.</span></li>
                 <li className="flex gap-3"><Play className="text-amber-400 shrink-0" size={20} /> <span><strong className="text-white">Технологія:</strong> Натисніть "Запустити Друк" для живої симуляції та логів.</span></li>
                 <li className="flex gap-3"><TrendingUp className="text-indigo-400 shrink-0" size={20} /> <span><strong className="text-white">Бізнес-план:</strong> Рухайте повзунок калькулятора для розрахунку економії.</span></li>
+                <li className="flex gap-3"><Zap className="text-amber-400 shrink-0" size={20} /> <span><strong className="text-white">Озвучення:</strong> Увімкніть тумблер у меню зліва для голосового супроводу.</span></li>
               </ul>
               <button onClick={() => setShowGuide(false)} className="w-full bg-indigo-500 text-white py-3 rounded-xl font-medium hover:bg-indigo-600 transition-colors">Зрозуміло</button>
             </motion.div>
